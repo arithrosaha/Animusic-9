@@ -1,0 +1,308 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>AniMusic Studio</title>
+<style>
+:root{--bg:#f3f1f8;--fg:#1b1730;--mut:#6a647f;--card:#fff;--line:#dcd7ea;--ac:#5b3df5;--on:#fff;--bad:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#13101f;--fg:#efebfb;--mut:#a59fbc;--card:#1d1930;--line:#312b4a;--ac:#a595ff;--on:#150f33;--bad:#ff8a80}}
+:root[data-theme="dark"]{--bg:#13101f;--fg:#efebfb;--mut:#a59fbc;--card:#1d1930;--line:#312b4a;--ac:#a595ff;--on:#150f33;--bad:#ff8a80}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Roboto,sans-serif}
+main{max-width:640px;margin:auto;padding:14px 14px 40px}
+h1{font:italic 700 28px/1.1 Georgia,serif;margin:6px 0 2px;letter-spacing:-.5px}h2{font:700 17px Georgia,serif;margin:18px 0 6px}
+p,li{max-width:70ch}.mut{color:var(--mut);font-size:13px}
+nav{display:flex;gap:4px;overflow-x:auto;margin:10px 0;border-bottom:1px solid var(--line)}
+nav button{flex:none;background:none;border:0;border-bottom:3px solid transparent;color:var(--mut);padding:10px 12px;font:600 14px inherit;font-family:inherit}
+nav button.on{color:var(--fg);border-color:var(--ac)}
+.pane{display:none}.pane.on{display:block}
+label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+input,textarea,select{width:100%;font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px}
+textarea{resize:vertical}
+button,.btn{font:600 15px inherit;font-family:inherit;background:var(--ac);color:var(--on);border:0;border-radius:8px;padding:12px 16px;display:inline-block;text-decoration:none;min-height:44px}
+button:disabled{opacity:.45}button.s,.btn.s{background:var(--card);color:var(--fg);border:1px solid var(--line);padding:8px 12px;min-height:40px;font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
+.card input[type=number]{width:110px;display:inline-block}.cap{display:grid;grid-template-columns:1fr 70px 70px 40px;gap:6px;margin:6px 0}
+.cap input{padding:8px 6px}.cap button{padding:0;background:var(--card);color:var(--bad);border:1px solid var(--line)}
+.msg{margin:10px 0;font-size:14px;min-height:20px}.msg.err{color:var(--bad);font-weight:600}
+canvas#wv{width:100%;height:60px;display:block;margin-top:10px}
+#cv{width:100%;max-height:70vh;background:#000;border-radius:8px;display:block;margin:auto;object-fit:contain}
+progress{width:100%;accent-color:var(--ac)}video{width:100%;margin-top:10px;border-radius:8px}
+ul,ol{padding-left:20px}
+.cr{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0}.cr.on{border-color:var(--ac);box-shadow:0 0 0 2px var(--ac)}
+.cr>input{margin-bottom:6px}.tt{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:4px}.tt input{width:78px;padding:8px 4px}.tt .s{padding:6px 10px;min-height:44px;min-width:44px}
+</style></head><body><main>
+<h1>AniMusic Studio</h1><div class="mut">Song in, storyboard and captions out. Prototype 1.</div>
+<nav><button data-t="song" class="on">Song</button><button data-t="scenes">Scenes</button><button data-t="caps">Captions</button><button data-t="prev">Preview &amp; export</button><button data-t="guide">Guide</button></nav>
+
+<section id="song" class="pane on">
+<label>Song file (MP3, WAV, or M4A if your browser supports it)</label><input id="file" type="file" accept="audio/*">
+<canvas id="wv" width="600" height="60"></canvas><div id="m1" class="msg"></div>
+<label>Story, art style, and mood</label><textarea id="prompt" rows="3" placeholder="Two lantern-makers in a rainy harbor town fall in love, then are separated by a storm…"></textarea>
+<label>Characters (copied into every scene’s art prompt so they stay consistent)</label><textarea id="chars" rows="3" placeholder="Mira: 19, short black hair, yellow raincoat, freckles. Joon: 21, tall, round glasses, green scarf."></textarea>
+<label>Art style line</label><input id="style" value="hand-drawn 2D cartoon, soft watercolor backgrounds, expressive faces, cinematic lighting">
+<label>Aspect ratio</label><select id="ratio"><option>9:16</option><option>16:9</option><option>1:1</option></select>
+<label>Target scene length (seconds)</label><input id="len" type="number" min="3" max="60" value="10">
+<div class="row"><button id="go1" disabled>Analyze song &amp; build storyboard</button></div>
+<p class="mut">The storyboard is a template of story beats matched to your song’s loudness. It is not written by AI. Edit every scene in the next tab.</p>
+</section>
+
+<section id="scenes" class="pane"><div id="m2" class="msg">Build a storyboard on the Song tab first.</div><div id="sl"></div></section>
+
+<section id="caps" class="pane">
+<label>Lyrics (one caption per line)</label><textarea id="lyr" rows="6"></textarea>
+<label>First caption starts at (seconds)</label><input id="c0" type="number" step="0.5" value="0">
+<div class="row"><button id="spread">Spread evenly across song</button></div>
+<p class="mut">Evenly spread timing is an estimate, not true lyric alignment. Fix start and end times by hand.</p>
+<h2>Auto-align (needs an aligner server)</h2>
+<div class="card"><div class="mut">Sends your song and lyrics to an aligner you host. This app has no alignment engine of its own, so with no server connected it only tells you so. Nothing is estimated or faked.</div>
+<label>Aligner server URL (https)</label><input id="aep" type="url" placeholder="https://your-aligner.example/align">
+<label>Language code</label><input id="alang" value="bn">
+<div class="row"><button id="aal">Auto-align lyrics</button></div></div>
+<h2>Tap to sync</h2>
+<div class="card"><div class="mut">Start the song, then tap the big button the moment each lyric begins.</div>
+<div id="nx" style="font:700 18px Georgia,serif;margin:8px 0;min-height:56px">Paste lyrics above, then start.</div>
+<button id="tap" style="width:100%;font-size:18px;padding:18px" disabled>Tap: this line starts now</button>
+<div class="row"><button class="s" id="sstart">Start over from 0:00</button><button class="s" id="spp">Pause</button><button class="s" id="sback">Back one line</button><button class="s" id="srw">Rewind 3s</button></div>
+<label>Reaction offset (seconds; taps land late)</label><input id="roff" type="number" step="0.05" value="0.15"></div>
+<label>Fine step for the − and + buttons (seconds)</label><select id="fst"><option value="0.05">0.05</option><option value="0.1" selected>0.1</option><option value="0.5">0.5</option></select>
+<div id="m4" class="msg"></div><div id="cl"></div>
+<h2>Import and export</h2><div class="card"><label>Import SRT, VTT, LRC or project JSON</label><input id="imp" type="file" accept=".srt,.vtt,.lrc,.json,.txt">
+<div class="row"><button class="s" id="esrt">SRT</button><button class="s" id="evtt">VTT</button><button class="s" id="elrc">LRC</button><button class="s" id="ejs">Project JSON</button></div>
+<div class="row"><button class="s" id="lsave">Save in this browser</button><button class="s" id="lload">Restore</button></div><div id="io" class="row"></div></div>
+</section>
+
+<section id="prev" class="pane">
+<canvas id="cv" width="540" height="960"></canvas>
+<audio id="au" preload="auto"></audio>
+<input id="seek" type="range" min="0" max="1" step="0.05" value="0"><div class="row"><button id="play">Play</button><span id="tm" class="mut" style="align-self:center">0:00.0 / 0:00.0</span></div>
+<p class="mut">Scenes without uploaded art show a labeled placeholder. No AI artwork exists until you upload art or connect a provider.</p>
+<h2>Export video</h2>
+<div id="fs" class="msg"></div>
+<label>Format</label><select id="fm"></select>
+<label>Quality</label><select id="ql"><option value="d">Draft: smaller, 1.2 Mbps</option><option value="s" selected>Standard: 2.5 Mbps</option><option value="h">High: 5 Mbps</option></select>
+<label><input id="mute" type="checkbox" style="width:auto"> Mute speaker while recording</label>
+<div id="est" class="mut"></div>
+<div class="row"><button class="s" id="test">3-second test</button><button class="s" id="stest">Self-test</button><button id="exp">Record full video</button><button class="s" id="stp" hidden>Stop and save</button></div>
+<progress id="pg" value="0" max="1" hidden></progress><div id="m5" class="msg"></div><div id="out"></div>
+</section>
+
+<section id="guide" class="pane">
+<h2>Works free in your browser</h2><ul><li>Reading the song and splitting it into scenes by loudness changes</li><li>Editing scene timing, scene notes, and captions</li><li>Preview with fades, plus slow pan and zoom on art you upload</li><li>Recording the preview to a video file</li></ul>
+<h2>Needs an outside service</h2><ul><li>AI-drawn scenes or animation (an image or video generation API)</li><li>True lyric timing (a speech-to-text or alignment service)</li><li>Fast rendering or guaranteed MP4 on every phone (a server, or ffmpeg compiled for the browser)</li></ul>
+<h2>Limits to know</h2><ul><li>Export records in real time: a 3-minute song takes 3 minutes. Keep Chrome open and the screen on.</li><li>You get MP4 only if your browser can record it. Otherwise you get WebM.</li><li>Saving may be blocked in the hosted preview. Use your own hosted copy, or the Share button.</li><li>Phone memory is limited. Long songs at High quality can fail, so use Standard or Draft and run the 3-second test first.</li><li>Browsers write WebM without a duration header, so some players cannot seek. It plays fine in Chrome.</li></ul>
+<h2>Host it from your Android phone</h2>
+<ol><li>In Chrome, sign in at github.com and create a repository named animusic (public).</li><li>Tap Add file, then Upload files, and pick this file. Name it index.html.</li><li>Tap Commit changes.</li><li>Open Settings, then Pages. Under Branch pick main, and Save.</li><li>After a minute your app is live at yourname.github.io/animusic. In Chrome’s menu, tap Add to Home screen.</li></ol>
+<h2>Automatic lyric alignment</h2>
+<p>The aligner server contract: POST multipart with audio (file), language, and lines (JSON list of {text, norm}). Reply JSON {“words”:[{“w”,“s”,“e”,“q”}]}, one entry per word of each line’s norm text in order, or {“lines”:[{“s”,“e”}]}, one per line. Add “error” to explain a refusal. “q” is shown only if your server sends it. Without a server, use Tap to sync.</p>
+<h2>Connect an art provider</h2>
+<p>Never put an API key in this file. Put the key in a small server function (for example a Cloudflare Worker secret) that calls the provider for you. Then paste that function’s URL here:</p>
+<input id="ep" type="url" placeholder="https://your-worker.example.workers.dev/art">
+<p class="mut">The app sends POST JSON {prompt, width, height, scene}. Your endpoint must allow CORS and reply {“image”: “https://… or data:image/…”}. On the Scenes tab, tap Generate via provider.</p>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const S={dur:0,en:[],scenes:[],caps:[],ratio:'9:16'},au=$('#au'),cv=$('#cv'),g=cv.getContext('2d');
+const SZ={'9:16':[540,960],'16:9':[960,540],'1:1':[720,720]};
+const BEATS=['Opening: set the world and meet the lead','The first spark: a glance, a memory, a wish','Growing closer: shared moments','The chorus lifts: joy at its brightest','A doubt appears: distance or a secret','The low point: alone with the feeling','Turning point: a brave choice','Finale: reunion or acceptance, closing image'];
+const fmt=t=>{t=Math.max(0,t||0);return Math.floor(t/60)+':'+(t%60).toFixed(1).padStart(4,'0')};
+function msg(id,t,err){const e=$(id);e.textContent=t;e.className='msg'+(err?' err':'')}
+function go(t){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==t));if(t=='prev')sizeCv()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.t));
+
+$('#file').onchange=async e=>{const f=e.target.files[0];if(!f)return;msg('#m1','Reading audio…');$('#go1').disabled=true;
+ try{const C=window.AudioContext||window.webkitAudioContext,c=new C(),buf=await c.decodeAudioData(await f.arrayBuffer());c.close();
+  const d=buf.getChannelData(0),w=Math.floor(buf.sampleRate/2),n=Math.ceil(d.length/w);S.dur=buf.duration;S.en=[];
+  for(let i=0;i<n;i++){let s=0,k=0;for(let j=i*w;j<Math.min(d.length,(i+1)*w);j+=8){s+=d[j]*d[j];k++}S.en.push(Math.sqrt(s/k))}
+  S.file=f;au.src=URL.createObjectURL(f);wave();$('#seek').max=S.dur;$('#go1').disabled=false;msg('#m1','Loaded '+f.name+', length '+fmt(S.dur)+'.')}
+ catch(x){msg('#m1','This browser could not read that file. Try an MP3 or WAV, or convert the M4A to MP3.',1)}};
+function wave(){const c=$('#wv'),x=c.getContext('2d'),m=Math.max(...S.en)||1;x.clearRect(0,0,600,60);x.fillStyle=getComputedStyle(document.body).getPropertyValue('--ac')||'#5b3df5';
+ for(let i=0;i<600;i++){const v=S.en[Math.floor(i/600*S.en.length)]/m;x.fillRect(i,30-v*28,1,Math.max(1,v*56))}}
+
+$('#go1').onclick=()=>{S.ratio=$('#ratio').value;const en=S.en,L=+$('#len').value||10,n=Math.max(1,Math.min(Math.round(S.dur/L),Math.floor(S.dur/3)||1)),
+ sm=en.map((v,i)=>(en[i-1]??v)*.25+v*.5+(en[i+1]??v)*.25),b=[0],mean=en.reduce((a,v)=>a+v,0)/en.length;
+ for(let k=1;k<n;k++){const c=Math.round(k*S.dur/n/.5);let best=c,bv=-1;for(let i=Math.max(1,c-4);i<=Math.min(en.length-2,c+4);i++){const v=Math.abs(sm[i+1]-sm[i-1]);if(v>bv){bv=v;best=i}}b.push(Math.max(b[k-1]+1,best*.5))}
+ b.push(S.dur);S.scenes=[];
+ for(let i=0;i<n;i++){const a=en.slice(Math.floor(b[i]*2),Math.ceil(b[i+1]*2)),m=a.reduce((x,v)=>x+v,0)/(a.length||1),mood=m<mean*.7?'soft':m>mean*1.2?'intense':'medium';
+  S.scenes.push({s:b[i],e:b[i+1],text:BEATS[Math.floor(i*BEATS.length/n)]+' (music: '+mood+')',img:null})}
+ rs();go('scenes');msg('#m2',n+' scenes built from the song’s loudness. Template story beats, edit freely.')};
+
+function rs(){$('#sl').innerHTML=S.scenes.map((c,i)=>`<div class="card"><b>Scene ${i+1}</b> <span class="mut">${fmt(c.s)} to ${fmt(c.e)}, ${(c.e-c.s).toFixed(1)}s</span>
+<label>Ends at (seconds)</label><input type="number" step="0.5" data-k="e" data-i="${i}" value="${c.e.toFixed(1)}" ${i==S.scenes.length-1?'disabled':''}>
+<label>Scene notes</label><textarea rows="3" data-k="t" data-i="${i}">${esc(c.text)}</textarea>
+<div class="row"><label class="btn s" style="margin:0">Upload art<input type="file" accept="image/*" hidden data-k="f" data-i="${i}"></label><button class="s" data-a="cp" data-i="${i}">Copy art prompt</button><button class="s" data-a="gen" data-i="${i}">Generate via provider</button></div>${c.img?'<div class="mut">Artwork attached</div>':''}</div>`).join('')}
+const sl=$('#sl');
+sl.addEventListener('change',e=>{const d=e.target.dataset,i=+d.i,c=S.scenes[i];
+ if(d.k=='e'){const n=S.scenes[i+1],v=Math.min(Math.max(+e.target.value,c.s+.5),n.e-.5);c.e=v;n.s=v;rs()}
+ if(d.k=='f'&&e.target.files[0])setImg(i,URL.createObjectURL(e.target.files[0])).then(rs).catch(()=>msg('#m2','That image could not be loaded.',1))});
+sl.addEventListener('input',e=>{if(e.target.dataset.k=='t')S.scenes[+e.target.dataset.i].text=e.target.value});
+sl.addEventListener('click',e=>{const a=e.target.dataset.a,i=+e.target.dataset.i;
+ if(a=='cp')navigator.clipboard.writeText(ap(i)).then(()=>msg('#m2','Art prompt copied. Paste it into any image tool, then upload the result.')).catch(()=>msg('#m2','This browser blocked copying.',1));
+ if(a=='gen')gen(i)});
+const ap=i=>`${$('#style').value}. Characters, identical in every scene: ${$('#chars').value||'(none described)'}. Scene: ${S.scenes[i].text}. Story: ${$('#prompt').value}. Frame ${S.ratio}.`;
+const setImg=(i,src)=>new Promise((ok,no)=>{const m=new Image();m.crossOrigin='anonymous';m.onload=()=>{S.scenes[i].img=m;ok()};m.onerror=no;m.src=src});
+async function gen(i){const ep=$('#ep').value.trim();
+ if(!ep)return msg('#m2','No generation service is connected, so no AI art was made. Upload your own art, or add a provider endpoint in the Guide tab.',1);
+ try{msg('#m2','Requesting art for scene '+(i+1)+'…');const r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:ap(i),width:cv.width,height:cv.height,scene:i})});
+  if(!r.ok)throw Error('server replied '+r.status);const j=await r.json();if(!j.image)throw Error('reply has no image field');await setImg(i,j.image);rs();msg('#m2','Art received for scene '+(i+1)+'.')}
+ catch(x){msg('#m2','Provider request failed: '+x.message+'. Outside requests are blocked in the hosted preview. Host the file yourself, and make sure your endpoint allows CORS.',1)}}
+
+$('#spread').onclick=()=>{const L=$('#lyr').value.split('\n').map(x=>x.trim()).filter(Boolean);
+ if(!S.dur)return msg('#m4','Load a song first.',1);if(!L.length)return msg('#m4','Paste lyrics first.',1);
+ const t0=Math.min(+$('#c0').value||0,S.dur-1),st=(S.dur-t0)/L.length;S.caps=L.map((t,i)=>({t,s:+(t0+i*st).toFixed(1),e:+(t0+(i+1)*st-.1).toFixed(1)}));cl();msg('#m4',L.length+' captions placed. Timing is estimated.')};
+let step=.1,segEnd=null;
+function seg(a,b){a=Math.max(0,a);b=Math.min(S.dur||b,b);au.currentTime=a;segEnd=b;au.play()}
+function act(t){document.querySelectorAll('.cr').forEach((r,i)=>{const c=S.caps[i];r.classList.toggle('on',!!c&&t>=c.s&&t<c.e)})}
+function vfy(){const r=fixCaps(S.caps,S.dur);S.caps=r.caps;msg('#m4',r.issues.join(' '),r.issues.length>0)}
+function cl(){$('#cl').innerHTML=S.caps.map((c,i)=>`<div class="cr" data-i="${i}"><input data-k="t" value="${esc(c.t)}"><div class="tt"><span class="mut">Start</span><button class="s" data-a="ds">−</button><input type="number" step="0.05" data-k="s" value="${c.s}"><button class="s" data-a="us">+</button></div><div class="tt"><span class="mut">End</span><button class="s" data-a="de">−</button><input type="number" step="0.05" data-k="e" value="${c.e}"><button class="s" data-a="ue">+</button></div><div class="tt"><button class="s" data-a="pl">Replay line</button><button class="s" data-a="au">Hear cut to next</button><button class="s" data-a="sp">Split</button><button class="s" data-a="mg">Merge with next</button><button class="s" data-a="x">Delete</button></div>${c.q!=null?`<div class="mut">Score from your aligner: ${c.q}</div>`:''}</div>`).join('')}
+$('#fst').onchange=()=>step=+$('#fst').value;
+$('#cl').addEventListener('change',e=>{const k=e.target.dataset.k;if(!k)return;S.caps[+e.target.closest('.cr').dataset.i][k]=k=='t'?e.target.value:+e.target.value;vfy();cl()});
+$('#cl').addEventListener('click',e=>{const a=e.target.dataset.a;if(!a)return;const i=+e.target.closest('.cr').dataset.i,c=S.caps[i],n=S.caps[i+1],nd=(k,d)=>{c[k]=+(c[k]+d).toFixed(2)};
+ if(a=='pl')return seg(c.s-1,c.e+1);if(a=='au')return seg(c.e-1.5,(n?n.s:c.e)+1.5);
+ if(a=='ds')nd('s',-step);if(a=='us')nd('s',step);if(a=='de')nd('e',-step);if(a=='ue')nd('e',step);
+ if(a=='sp'){const w=c.t.split(/\s+/);if(w.length<2)return msg('#m4','A line needs two or more words to split.',1);const h=Math.ceil(w.length/2),m=+((c.s+c.e)/2).toFixed(2);S.caps.splice(i,1,{t:w.slice(0,h).join(' '),s:c.s,e:m},{t:w.slice(h).join(' '),s:m,e:c.e})}
+ if(a=='mg'){if(!n)return;c.t+=' '+n.t;c.e=n.e;S.caps.splice(i+1,1)}
+ if(a=='x')S.caps.splice(i,1);
+ vfy();cl()});
+
+const Q={d:[.67,1.2e6],s:[1,2.5e6],h:[1,5e6]};
+function sizeCv(){const [w,h]=SZ[S.ratio],k=Q[$('#ql').value][0];cv.width=Math.round(w*k/2)*2;cv.height=Math.round(h*k/2)*2;draw(au.currentTime||0);est()}
+function lines(t,mw){const o=[];let l='';for(const w of t.split(/\s+/)){const x=l?l+' '+w:w;if(g.measureText(x).width>mw&&l){o.push(l);l=w}else l=x}o.push(l);return o}
+function txt(t,x,y,mw,lh,st){g.textBaseline='top';lines(t,mw).forEach((l,k)=>{if(st)g.strokeText(l,x,y+k*lh);g.fillText(l,x,y+k*lh)})}
+function art(i,t,a){const c=S.scenes[i],w=cv.width,h=cv.height,p=Math.min(1,Math.max(0,(t-c.s)/(c.e-c.s)));g.globalAlpha=a;
+ if(c.img){const z=1+.1*p,r=Math.max(w/c.img.width,h/c.img.height)*z,iw=c.img.width*r,ih=c.img.height*r;g.drawImage(c.img,(w-iw)*(.3+.4*p),(h-ih)/2,iw,ih)}
+ else{const u=(i*47+220)%360,gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,`hsl(${u},50%,30%)`);gr.addColorStop(1,`hsl(${u+40},55%,12%)`);g.fillStyle=gr;g.fillRect(0,0,w,h);
+  g.fillStyle='rgba(255,255,255,.07)';for(let k=0;k<5;k++){g.beginPath();g.arc(w*((k*.23+p*.15+i*.1)%1),h*(.15+k*.16),w*.13,0,7);g.fill()}
+  g.fillStyle='rgba(255,255,255,.9)';g.textAlign='center';g.font=`700 ${w*.045}px sans-serif`;txt(`Scene ${i+1}: placeholder, no artwork yet`,w/2,h*.3,w*.8,w*.06);
+  g.font=`${w*.036}px sans-serif`;txt(c.text,w/2,h*.45,w*.8,w*.05)}
+ g.globalAlpha=1}
+function draw(t){const w=cv.width,h=cv.height;g.fillStyle='#000';g.fillRect(0,0,w,h);
+ if(!S.scenes.length){g.fillStyle='#fff';g.textAlign='center';g.font=`${w*.04}px sans-serif`;return txt('Build a storyboard first',w/2,h*.45,w*.8,w*.055)}
+ let i=S.scenes.findIndex(c=>t<c.e);if(i<0)i=S.scenes.length-1;const c=S.scenes[i],f=(t-c.s)/.5;
+ if(i>0&&f<1){art(i-1,t,1);art(i,t,Math.max(0,f))}else art(i,t,1);
+ const k=S.caps.find(x=>t>=x.s&&t<x.e);
+ if(k){g.font=`800 ${w*.06}px system-ui,sans-serif`;g.textAlign='center';g.lineJoin='round';g.lineWidth=w*.014;g.strokeStyle='#000';g.fillStyle='#fff';
+  const lh=w*.075,n=lines(k.t,w*.84).length;txt(k.t,w/2,h*.86-n*lh,w*.84,lh,1)}}
+let raf,R;function tick(){const t=au.currentTime;draw(t);act(t);if(segEnd!=null&&t>=segEnd){au.pause();segEnd=null}$('#seek').value=t;$('#tm').textContent=fmt(t)+' / '+fmt(S.dur);
+ if(R&&R.state=='recording'){const T=limit||S.dur;$('#pg').value=t/T;msg('#m5',`Recording ${Math.round(t/T*100)}%, ${(bytes/1e6).toFixed(1)} MB captured. Keep this screen open.`);if(limit&&t>=limit)finish()}
+ if(!au.paused)raf=requestAnimationFrame(tick)}
+au.onplay=()=>{$('#play').textContent='Pause';tick()};au.onpause=()=>$('#play').textContent='Play';
+au.onended=()=>{$('#play').textContent='Play';finish()};
+$('#play').onclick=()=>{if(!au.src)return msg('#m5','Load a song first.',1);au.paused?au.play():au.pause()};
+$('#seek').oninput=e=>{au.currentTime=+e.target.value;draw(au.currentTime)};
+
+/*PURE*/
+const normText=s=>s.normalize('NFC').replace(/[\p{P}\p{S}]+/gu,' ').replace(/\s+/g,' ').trim().toLowerCase();
+function fixCaps(c,dur){const issues=[],o=[];c.forEach((x,i)=>{let s=+x.s,e=+x.e;const n='Caption '+(i+1);
+ if(!isFinite(s)||!isFinite(e)){issues.push(n+' had an invalid time and was reset.');s=e=0}
+ if(s<0){issues.push(n+' started before 0.');s=0}
+ if(dur&&e>dur){issues.push(n+' ended after the song and was trimmed.');e=dur}
+ if(dur&&s>dur)s=dur;
+ if((s||e)&&e<=s){issues.push(n+' end was not after its start. End set to start plus 0.3s.');e=dur?Math.min(dur,s+.3):s+.3}
+ o.push({...x,s:+s.toFixed(2),e:+e.toFixed(2)})});return{caps:o,issues}}
+const ts=(t,sep)=>{const T=Math.round(Math.max(0,t)*1000),p=(n,w)=>String(n).padStart(w,'0');return p(Math.floor(T/3600000),2)+':'+p(Math.floor(T/60000)%60,2)+':'+p(Math.floor(T/1000)%60,2)+sep+p(T%1000,3)};
+const toSRT=c=>c.map((x,i)=>`${i+1}\n${ts(x.s,',')} --> ${ts(x.e,',')}\n${x.t}\n`).join('\n');
+const toVTT=c=>'WEBVTT\n\n'+c.map(x=>`${ts(x.s,'.')} --> ${ts(x.e,'.')}\n${x.t}\n`).join('\n');
+const toLRC=c=>c.map(x=>{const T=Math.round(x.s*100),p=n=>String(n).padStart(2,'0');return `[${p(Math.floor(T/6000))}:${p(Math.floor(T/100)%60)}.${p(T%100)}]${x.t}`}).join('\n');
+function parseCaps(x){const bad=[],caps=[];x=x.replace(/^\uFEFF/,'').replace(/\r/g,'');
+ const T=s=>{const m=/^(?:(\d+):)?(\d{1,3}):(\d{1,2})(?:[.,](\d{1,3}))?$/.exec(s.trim());return m?(+(m[1]||0))*3600+(+m[2])*60+(+m[3])+(m[4]?+('0.'+m[4]):0):NaN};
+ if(!/-->/.test(x)&&/^\s*\[\d{1,3}:\d{2}/m.test(x)){const rows=[];
+  x.split('\n').forEach((l,n)=>{const m=/^\s*((?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\])+)\s*(.*)$/.exec(l);
+   if(!m){if(l.trim()&&!/^\s*\[[a-z]+:/i.test(l))bad.push('Line '+(n+1)+' has no timestamp.');return}
+   m[1].match(/\[[^\]]+\]/g).forEach(g=>{const t=T(g.slice(1,-1).replace(/^(\d+:\d+):(\d{1,3})$/,'$1.$2'));isNaN(t)?bad.push('Line '+(n+1)+' has a bad time.'):rows.push({t:m[2].trim(),s:t})})});
+  rows.sort((a,b)=>a.s-b.s);rows.forEach((r,i)=>{const q=rows[i+1];caps.push({t:r.t,s:r.s,e:q?Math.max(r.s+.3,Math.min(q.s-.05,r.s+8)):r.s+4})});return{caps,bad}}
+ x.split(/\n\s*\n/).forEach((b,n)=>{const L=b.split('\n').map(s=>s.trim()),k=L.findIndex(s=>s.includes('-->'));
+  if(k<0){const u=b.trim();if(u&&!/^(WEBVTT|NOTE|STYLE)/.test(u)&&!/^\d+$/.test(u))bad.push('Block '+(n+1)+' has no time range.');return}
+  const [a,z]=L[k].split('-->'),s=T(a),e=T((z||'').trim().split(/\s+/)[0]);
+  if(isNaN(s)||isNaN(e)){bad.push('Block '+(n+1)+' has a bad time.');return}
+  caps.push({t:L.slice(k+1).filter(Boolean).join(' '),s,e})});return{caps,bad}}
+function mapWords(words,lines){const n=lines.map(l=>normText(l).split(' ').filter(Boolean).length);if(words.length!=n.reduce((a,b)=>a+b,0))return null;
+ let p=0;return n.map(k=>{const w=words.slice(p,p+k);p+=k;if(!k)return{s:0,e:0};const q=w.every(x=>typeof x.q=='number')?+(w.reduce((a,x)=>a+x.q,0)/k).toFixed(2):undefined;return{s:w[0].s,e:w[k-1].e,q}})}
+/*ENDPURE*/
+/* Alignment adapter: an engine takes (file, lines, lang, url) and resolves {words?,lines?,error?}. Swap ALIGN.remote to change engines. */
+const ALIGN={remote:async(file,L,lang,url)=>{const fd=new FormData();fd.append('audio',file);fd.append('language',lang);fd.append('lines',JSON.stringify(L.map(t=>({text:t,norm:normText(t)}))));
+ const r=await fetch(url,{method:'POST',body:fd});if(!r.ok)throw Error('server replied '+r.status);return r.json()}};
+$('#aal').onclick=async()=>{const L=lyr(),url=$('#aep').value.trim();
+ if(!S.file)return msg('#m4','Load a song first.',1);if(!L.length)return msg('#m4','Paste lyrics first.',1);
+ if(!url)return msg('#m4','No alignment engine is connected, so nothing was aligned. Use Tap to sync below, or set up an aligner (see the Guide tab).',1);
+ msg('#m4','Aligning on your server. The first request can take a minute if it was asleep…');$('#aal').disabled=true;
+ try{const j=await ALIGN.remote(S.file,L,$('#alang').value.trim()||'bn',url);if(j.error)throw Error(j.error);let out;
+  if(Array.isArray(j.words)){out=mapWords(j.words,L);if(!out)throw Error('the returned words do not match your lyrics, so lines cannot be assigned')}
+  else if(Array.isArray(j.lines)&&j.lines.length==L.length)out=j.lines;else throw Error('the reply had neither word timings nor one timing per line');
+  const r=fixCaps(L.map((t,i)=>({t,s:out[i].s,e:out[i].e,q:out[i].q})),S.dur);S.caps=r.caps;cl();
+  msg('#m4',(j.words?'Word-level':'Line-level')+' timings received from your aligner. Review every line with Replay.'+(r.issues.length?' '+r.issues.join(' '):''),r.issues.length>0)}
+ catch(x){msg('#m4','Alignment failed: '+x.message+'. Use Tap to sync instead, or check your server.',1)}
+ $('#aal').disabled=false};
+const proj=()=>({app:'animusic',v:1,song:{name:S.file?S.file.name:'',duration:S.dur},lyrics:S.caps.map(c=>c.t),timing:S.caps.map(c=>({s:c.s,e:c.e,q:c.q}))});
+function loadProj(o){if(!o||!Array.isArray(o.lyrics)||!Array.isArray(o.timing)||o.lyrics.length!=o.timing.length)throw Error('not an AniMusic project file');return o.lyrics.map((t,i)=>({t:String(t),s:+o.timing[i].s,e:+o.timing[i].e,q:o.timing[i].q}))}
+function give(name,text){const b=new Blob([text],{type:'text/plain;charset=utf-8'}),u=URL.createObjectURL(b),f=new File([b],name,{type:'text/plain'});
+ $('#io').innerHTML=`<a class="btn s" download="${name}" href="${u}">Save ${name}</a>`;
+ if(navigator.canShare&&navigator.canShare({files:[f]})){$('#io').insertAdjacentHTML('beforeend','<button class="s" id="ish">Share</button>');$('#ish').onclick=()=>navigator.share({files:[f]}).catch(()=>{})}}
+[['#esrt','captions.srt',toSRT],['#evtt','captions.vtt',toVTT],['#elrc','captions.lrc',toLRC],['#ejs','animusic-project.json',()=>JSON.stringify(proj(),null,1)]].forEach(([id,n,f])=>$(id).onclick=()=>S.caps.length?give(n,f(S.caps)):msg('#m4','No captions yet.',1));
+$('#imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+ try{const x=await f.text();let caps,bad=[];if(x.trim()[0]=='{')caps=loadProj(JSON.parse(x));else{const q=parseCaps(x);caps=q.caps;bad=q.bad}
+  const r=fixCaps(caps,S.dur);S.caps=r.caps;$('#lyr').value=S.caps.map(c=>c.t).join('\n');cl();const all=bad.concat(r.issues);
+  msg('#m4',`Imported ${S.caps.length} captions.`+(all.length?' Problems: '+all.slice(0,4).join(' ')+(all.length>4?' And '+(all.length-4)+' more.':''):''),all.length>0)}
+ catch(x){msg('#m4','Import failed: '+x.message,1)}};
+$('#lsave').onclick=()=>{try{localStorage.setItem('animusic.project',JSON.stringify(proj()));msg('#m4','Saved in this browser: lyrics and timing only. Load the song again after restoring.')}catch(x){msg('#m4','This browser blocked saving.',1)}};
+$('#lload').onclick=()=>{try{const j=localStorage.getItem('animusic.project');if(!j)return msg('#m4','Nothing saved yet.',1);S.caps=fixCaps(loadProj(JSON.parse(j)),S.dur).caps;$('#lyr').value=S.caps.map(c=>c.t).join('\n');cl();msg('#m4','Restored '+S.caps.length+' captions.')}catch(x){msg('#m4','Restore failed: '+x.message,1)}};
+$('#stest').onclick=()=>{const p=[],f=[],ok=(c,m)=>(c?p:f).push(m),sc=S.scenes;
+ ok(S.dur>0,'song loaded');ok(sc.length>0&&Math.abs(sc[0].s)<.01&&Math.abs(sc[sc.length-1].e-S.dur)<.05,'scenes cover the whole song');
+ ok(sc.every((c,i)=>c.e>c.s&&(i==0||Math.abs(c.s-sc[i-1].e)<.01)),'scenes are contiguous');
+ ok(!au.duration||Math.abs(au.duration-S.dur)<.5,'player length matches decoded length');
+ ok(!fixCaps(S.caps,S.dur).issues.length,'caption times valid');ok(!S.caps.some((c,i)=>i&&c.s<S.caps[i-1].s),'captions in time order');
+ msg('#m5',(f.length?'Self-test found problems: '+f.join('; ')+'. ':'')+'Checks passed: '+p.length+'. This checks data consistency only, not recording quality.',f.length>0)};
+segEnd=null;['#play','#spp','#sstart'].forEach(s=>$(s).addEventListener('click',()=>{segEnd=null},true));
+/* Tap-to-sync */
+let sp=0;const lyr=()=>$('#lyr').value.split('\n').map(x=>x.trim()).filter(Boolean);
+function nx(){const L=S.caps,d=sp>=L.length;$('#nx').innerHTML=d?'All lines timed. Fine-tune below.':`<span class="mut">${sp?esc(L[sp-1].t):''}</span><br>Next: ${esc(L[sp].t)}`;$('#tap').disabled=d}
+$('#sstart').onclick=()=>{if(!S.dur)return msg('#m4','Load a song first.',1);const L=lyr();if(!L.length)return msg('#m4','Paste lyrics first.',1);
+ if(L.join('\n')!=S.caps.map(c=>c.t).join('\n'))S.caps=L.map(t=>({t,s:0,e:0}));
+ S.caps.forEach(c=>c.s=c.e=0);sp=0;au.currentTime=0;au.play();$('#spp').textContent='Pause';cl();nx();msg('#m4','Playing. Tap when each line begins. This clears old caption times.')};
+$('#tap').onclick=()=>{if(sp>=S.caps.length)return;const t=Math.max(0,au.currentTime-(+$('#roff').value||0)),c=S.caps[sp];
+ c.s=+t.toFixed(1);c.e=+Math.min(t+4,S.dur).toFixed(1);
+ if(sp>0){const p=S.caps[sp-1];p.e=+Math.max(p.s+.3,Math.min(t-.1,p.s+6)).toFixed(1)}
+ sp++;cl();nx();if(sp>=S.caps.length)msg('#m4','Last line timed. Check it in the preview.')};
+$('#sback').onclick=()=>{if(sp>0){sp--;au.currentTime=Math.max(0,S.caps[sp].s-2);nx()}};
+$('#srw').onclick=()=>{au.currentTime=Math.max(0,au.currentTime-3)};
+$('#spp').onclick=e=>{if(au.paused){au.play();e.target.textContent='Pause'}else{au.pause();e.target.textContent='Play'}};
+
+/* Export */
+const CAND=[['MP4 (H.264 + AAC)','video/mp4;codecs=avc1.42E01E,mp4a.40.2'],['MP4','video/mp4'],['WebM (VP9 + Opus)','video/webm;codecs=vp9,opus'],['WebM (VP8 + Opus)','video/webm;codecs=vp8,opus'],['WebM','video/webm']];
+let actx,dest,mon,url,CH=[],bytes=0,limit=0;
+function fmts(){const ok=window.MediaRecorder&&cv.captureStream?CAND.filter(c=>MediaRecorder.isTypeSupported(c[1])):[];
+ $('#fm').innerHTML=ok.map(c=>`<option value="${c[1]}">${c[0]}</option>`).join('');
+ msg('#fs',!ok.length?'This browser cannot record video here. Use Chrome on Android.':ok.some(c=>c[1].startsWith('video/mp4'))?'MP4 recording is available in this browser. It is listed first.':'This browser records WebM only, not MP4. WebM plays in Chrome and most Android players. For MP4, convert the file afterwards with a converter app.',!ok.length)}
+function est(){const d=S.dur||0,mb=(Q[$('#ql').value][1]+128e3)*d/8e6;$('#est').textContent=d?`Estimated file size: about ${mb.toFixed(0)} MB for ${fmt(d)}.${mb>250?' Large for a phone. Choose Draft quality.':''}`:''}
+const finish=()=>{if(R&&R.state!='inactive'){try{R.requestData()}catch(_){}setTimeout(()=>{R.state!='inactive'&&R.stop()},400)}};
+async function run(lim){
+ if(!S.scenes.length||!au.src)return msg('#m5','Load a song and build a storyboard first.',1);
+ const mime=$('#fm').value;if(!mime)return msg('#m5','No supported video format in this browser.',1);
+ limit=lim||0;const total=limit||S.dur;
+ try{if(!actx){actx=new (window.AudioContext||window.webkitAudioContext)();const s=actx.createMediaElementSource(au);dest=actx.createMediaStreamDestination();mon=actx.createGain();s.connect(dest);s.connect(mon);mon.connect(actx.destination)}
+  await actx.resume();mon.gain.value=$('#mute').checked?0:1;
+  au.pause();await new Promise(r=>{au.onseeked=r;au.currentTime=0;setTimeout(r,500)});au.onseeked=null;sizeCv();
+  if(url)URL.revokeObjectURL(url);$('#out').innerHTML='';
+  const at=dest.stream.getAudioTracks();if(!at.length)throw Error('no audio track could be captured');
+  const st=cv.captureStream(30);at.forEach(t=>st.addTrack(t));
+  CH=[];bytes=0;R=new MediaRecorder(st,{mimeType:mime,videoBitsPerSecond:Q[$('#ql').value][1],audioBitsPerSecond:128e3});
+  let wl;try{wl=await navigator.wakeLock.request('screen')}catch(_){}
+  R.ondataavailable=e=>{if(e.data.size){CH.push(e.data);bytes+=e.data.size}};
+  R.onerror=e=>{msg('#m5','Recording error: '+(e.error&&e.error.message||'unknown')+'. Saving what was captured.',1);try{R.stop()}catch(_){}};
+  R.onstop=()=>{wl&&wl.release();au.pause();$('#pg').hidden=$('#stp').hidden=true;$('#exp').disabled=$('#test').disabled=false;done(mime,total)};
+  $('#exp').disabled=$('#test').disabled=true;$('#stp').hidden=false;$('#pg').hidden=false;$('#pg').value=0;
+  await new Promise(r=>{R.onstart=r;R.start(1000)});au.play()}
+ catch(x){msg('#m5','Export failed: '+x.message,1);$('#exp').disabled=$('#test').disabled=false}}
+function done(mime,total){const ext=mime.includes('mp4')?'mp4':'webm',blob=new Blob(CH,{type:mime.split(';')[0]});CH=[];
+ if(!blob.size)return msg('#m5','Nothing was recorded. Try Draft quality or another format.',1);
+ url=URL.createObjectURL(blob);const name='animusic-'+(limit?'test':'video')+'.'+ext,f=new File([blob],name,{type:blob.type});
+ $('#out').innerHTML=`<video controls playsinline src="${url}"></video><div class="row"><a class="btn" download="${name}" href="${url}">Save .${ext}</a><button class="s" id="shr" hidden>Share or save to Drive</button></div><div id="chk" class="msg">Checking file…</div>`;
+ const v=$('#out video');if(navigator.canShare&&navigator.canShare({files:[f]})){$('#shr').hidden=false;$('#shr').onclick=()=>navigator.share({files:[f],title:name}).catch(()=>{})}
+ const rep=d=>{const bad=!(Math.abs(d-total)<=2);msg('#chk',`${ext.toUpperCase()}, ${(blob.size/1e6).toFixed(1)} MB, length ${fmt(d)} of expected ${fmt(total)}.${bad?' The length is off, so the export may be incomplete. Try again with the screen on.':' Length matches.'}`,bad);v.currentTime=0};
+ v.onloadedmetadata=()=>{if(v.duration===Infinity){v.ontimeupdate=()=>{v.ontimeupdate=null;rep(v.duration)};v.currentTime=1e9}else rep(v.duration)};
+ v.onerror=()=>msg('#chk','This browser could not play the file back, so it may be damaged.',1);
+ msg('#m5','Recording stopped. Check the file result below before relying on it.')}
+document.addEventListener('visibilitychange',()=>{if(!R||R.state=='inactive')return;
+ if(document.hidden){au.pause();if(R.state=='recording')R.pause();msg('#m5','The app went to the background. Recording was paused and will try to resume when you return. If the final length check fails, record again with the screen on.',1)}
+ else if(R.state=='paused'){R.resume();au.play()}});
+$('#exp').onclick=()=>run(0);$('#test').onclick=()=>run(3);$('#stp').onclick=finish;$('#ql').onchange=sizeCv;fmts();est();
+draw(0);
+</script></body></html>
